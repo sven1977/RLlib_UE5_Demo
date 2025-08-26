@@ -34,18 +34,24 @@ void ARLlibGateway::BeginPlay()
   SetActorTickEnabled(true);
   //SetTickableWhenPaused(true);
 
-  py::gil_scoped_acquire gil;
+  try {
+    py::gil_scoped_acquire gil;
 
-  py::module_ sys = py::module_::import("sys");
-  sys.attr("path").attr("append")("C:/Programs/Anaconda3/envs/simulator/Lib/site-packages");
+    py::module_ sys = py::module_::import("sys");
+    //sys.attr("path").attr("append")("C:/Programs/Anaconda3/envs/simulator/Lib/site-packages");
 
-  py::module_ gateway_mod = py::module_::import("ray.rllib.env.external.rllib_gateway");
-  py::object gateway_cls = gateway_mod.attr("RLlibGateway");
-  GatewayInstance = new py::object(gateway_cls(
-    TCHAR_TO_UTF8(*Address),
-    Port,
-    std::string("INFO") // python log level
-  ));
+    py::module_ gateway_mod = py::module_::import("ray.rllib.env.external.rllib_gateway");
+    py::object gateway_cls = gateway_mod.attr("RLlibGateway");
+    GatewayInstance = new py::object(gateway_cls(
+      TCHAR_TO_UTF8(*Address),
+      Port,
+      std::string("INFO") // python log level
+    ));
+  }
+  catch (...) {
+    // Catch all other unknown exceptions
+    PrintToConsole(TEXT("Exception caught while trying to setup RLlibGateway instance in python."), false, false);
+  }
 }
 
 void ARLlibGateway::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -84,6 +90,7 @@ void ARLlibGateway::EpisodeDone(float final_reward, const TArray<float>& final_o
 }
 
 int32 ARLlibGateway::EnvStepHelper(float reward, const TArray<float>& observation, bool terminated, bool truncated) {
+
   py::gil_scoped_acquire gil;
   std::vector<float> obsVec(observation.GetData(), observation.GetData() + observation.Num());
 

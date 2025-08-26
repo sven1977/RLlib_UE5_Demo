@@ -41,7 +41,7 @@ Installation
 ------------
 
 Windows
-*******
++++++++
 
 Open a "File Explorer" window and browse to this downloaded UE5 project repo. Right-click on the `RLlib_UE5_Demo.uproject`
 file and select the "Generate Visual Studio Project Files" option. This should create a
@@ -82,5 +82,44 @@ haven't opened it yet on your PC. Instead, enter the location of the ``RLlib_UE5
 root of this repo manually and then click "open".
 
 .. figure:: images/select_uproject_file.png
+
+After some initial loading time, you should see the game project in your editor now.
+
+
+.. figure:: images/game_in_editor.png
+
+The first map (level) you see should be the `ThirdPersonMap`. This is the only valid map in this project and in case you don't see it, you should switch to it
+by clicking on the "Content Browser" button, then navigating to the map file:
+
+.. figure:: images/pick_correct_map.png
+
+
+Running the game in the UE5 editor
+----------------------------------
+
+Press the green play button to start the game. It may take some time to start the game initially, as the RLlibGateway
+component actor will try to load the pybind11 dependencies and RLlib modules and even connect to a listening RLlib server.
+However, the game should eventually start, even if you don't have any of these components and services setup yet.
+
+Try to navigate with your arrow keys through the small level and collect the blue boxes with the player character.
+These should disappear upon collision.
+Press `escape` to stop the game.
+
+.. figure:: images/playing_game_in_editor.png
+
+
+Chaning level elements
+++++++++++++++++++++++
+
+You can change the appearance of the level by adding more walls, moving existing ones around, or making the level
+itself larger. Note that all wall elements have a tag "wall" and all blue boxes have a tag "bluebox". These tags are
+essential for computing the observation vectors. In case you add new elements and need to add either a "wall" or "bluebox" tag,
+you can do so through clicking on the added element and then searching for "tag" in the details panel. Then add a new
+array element to the Tags array and enter the tag value.
+
+.. figure:: images/change_tags_of_elements.png
+
+Chaning game mechanics
+++++++++++++++++++++++
 
 
