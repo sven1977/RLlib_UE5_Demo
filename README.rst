@@ -108,8 +108,8 @@ Press `escape` to stop the game.
 .. figure:: images/playing_game_in_editor.png
 
 
-Chaning level elements
-++++++++++++++++++++++
+Changing level elements
++++++++++++++++++++++++
 
 You can change the appearance of the level by adding more walls, moving existing ones around, or making the level
 itself larger. Note that all wall elements have a tag "wall" and all blue boxes have a tag "bluebox". These tags are
@@ -119,7 +119,83 @@ array element to the Tags array and enter the tag value.
 
 .. figure:: images/change_tags_of_elements.png
 
-Chaning game mechanics
-++++++++++++++++++++++
+Main classes of the game
+++++++++++++++++++++++++
+
+RLlibGateway
+************
+
+The `RLlibGateway` is a special actor that should only exist once in your game. It's an invisible actor that does not
+interact directly with any of the other level components. However, it allows communication with an RLlib sever during
+the game and allows for collecting training data and sending this data to RLlib for model updates.
+
+.. figure:: images/configure_rllib_gateway_actor.png
+
+Find the RLlibGateway actor in the map "Outliner" tab, double click it and look at its "Details" panel. In there, you
+should find an `RLlib` category, in which you can change the gateway's address and port. Set it to something like
+`127.0.0.1` and `5556`, respectively.
 
 
+Character
+*********
+
+Click on the "Content Drawer" on the lower left corner of the editor and click through the directory structure
+to: `All/Content/ThirdPerson/Blueprints`, then double click on the `BP_ThirdPerson` blueprint to open it in its own
+editor window.
+
+The important tabs are the `Viewport`, in which you see the character and the camera following it during the game,
+the `EventGraph` with all the important even blueprint scripts, and some of the blueprint functions, such as `ApplyAction`,
+`SetReward`, or `ResetEnv`.
+
+.. figure:: images/bp_character_viewport.png
+
+Now click on `EventGraph` and try navigating and zooming into the "Event Begin Play" event.
+You can see that the character class initially zeros out its "Observation" variable (the observation tensor being sent
+to the model on each time step to compute the next action) as well as setting a reference to the only `RLlibGateway`
+instance in the running game. The character class will need this reference to `RLlibGateway` to compute actions,
+set rewards, signal episode termination, and communicate with RLlib.
+
+Walking through the character tick method
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Next, still in the `EventGraph`, zoom in on the `Tick` event. This is the event that fires on each game loop timestep
+(aka. "tick"). Here, you can change the character's per-timestep behavior. Right now, the character adds up the time variable
+that remembers since when the player vs RLlib has been controlling the character. Then, it adds one to the discrete timestep/tick
+counter. This counter is used to figure out, whether an episode should be done (truncated). You can change the maximum timesteps
+per episode through the "Episode max timesteps" variable of the character class:
+
+.. figure:: images/character_variable.png
+
+Double click on the variable name to open its "Details" panel, in which you can change its default value. Values somewhere between
+1000 and 10000 should make sense here.
+
+If the episode is not done (max timesteps have not been reached), the tick event continues with performing raycasts
+from the character into the space in front of the character to compute the next observation tensor.
+You can change the exact behavior of the raycast system through the variables:
+
+* Num Rays: How many rays should be cast?
+* Trace distance: The length of each ray.
+* Vision field: The size of the field of vision (in degrees). For example, 180 means the character scans the environment from 9 o'clock to 3 o'clock.
+
+.. figure:: images/character_raycast_variables.png
+
+Character's observation
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The observation tensor of the character is built in the following fashion:
+
+* Each ray is responsible for 5 float32 features. So if you set "Num Rays" to 10, your observation space will be a `Box` of `shape=(50,)`.
+* The first feature is whether anything is hit (value of 1.0) or not (value of 0.0).
+* The next value is for hitting a wall (1.0 for yes, 0.0 for no). If yes, the third value gives the distance to the wall. If no, the third value will be 0.0.
+* The next value is for hitting a blue box (1.0 for yes, 0.0 for no). If yes, the third value gives the distance to the blue box. If no, the third value will be 0.0.
+
+Reward function
+~~~~~~~~~~~~~~~
+
+
+
+
+
+
+Blue box
+********
