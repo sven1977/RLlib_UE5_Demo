@@ -144,7 +144,7 @@ to: `All/Content/ThirdPerson/Blueprints`, then double click on the `BP_ThirdPers
 editor window.
 
 The important tabs are the `Viewport`, in which you see the character and the camera following it during the game,
-the `EventGraph` with all the important even blueprint scripts, and some of the blueprint functions, such as `ApplyAction`,
+the `EventGraph` with all the important event blueprint scripts, and some of the blueprint functions, such as `ApplyAction`,
 `SetReward`, or `ResetEnv`.
 
 .. figure:: images/bp_character_viewport.png
@@ -189,13 +189,81 @@ The observation tensor of the character is built in the following fashion:
 * The next value is for hitting a wall (1.0 for yes, 0.0 for no). If yes, the third value gives the distance to the wall. If no, the third value will be 0.0.
 * The next value is for hitting a blue box (1.0 for yes, 0.0 for no). If yes, the third value gives the distance to the blue box. If no, the third value will be 0.0.
 
+After compiling the next observation tensor, it's time to compute the next action for the character to take, using this
+observation. The character has a RLlibGateway reference, which it now uses to call the gateway's GetAction method, passing it
+the current observation (and reward; more on rewards, see below). Then the computed action is applied to the character using
+the UE5 Character's "Apply Controller Input".
+
+Action space
+~~~~~~~~~~~~
+
+The action space of the game is a `Discrete(9)`, where there are 8 actions (up, right, down, left, and all 4 diagonals)
+plus one noop action.
+
 Reward function
 ~~~~~~~~~~~~~~~
 
+The agent is rewarded with +1.0 when colliding with a blue box. You can change this value in the
+BP_BlueBox blueprint. Go to the "Content Drawer" and double click the "BP_BlueBox" inside the
+`All/Content/ThirdPerson/Blueprints` folder. Then navigate to the `EventGraph` and to the "EventBeginOverlap" event.
+There is a method call to the character's `SetReward` function, in which the value of 1.0 is currently hardcoded.
 
+In all other timesteps, the agent receives a small negative reward to motivate it to walk through the level as fast
+as possible and collect as many boxes as possible. Change this value inside the Character's blueprint's `Tick` event:
 
+.. figure:: images/character_timestep_reward.png
 
+The logic is currently to receive an overall sum of rewards of -10.0 over the course of one episode, if and only if no box
+is collected: `r(t) = -10.0 / [Episode Max Timesteps]`. Change this logic as well as you please.
 
 
 Blue box
 ********
+
+Click on the "Content Drawer" on the lower left corner of the editor and click through the directory structure
+to: `All/Content/ThirdPerson/Blueprints`, then double click on the `BP_BlueBox` blueprint to open it in its own
+editor window.
+
+The important tabs are the `Viewport`, in which you see the blue box static mesh (you can change it to any
+shape/mesh you'd like) and the `EventGraph` with the important event blueprint scripts.
+
+.. figure:: images/bp_bluebox_viewport.png
+
+Now click on `EventGraph` and try navigating and zooming into the "Event Begin Play" event.
+You can see that each Blue Box actor stores its own starting location initially. This is used when the episode
+is reset and all blue boxes are moved back to their starting positions again to start a new episode.
+
+Finally, in the "EventActorBeginOverlap" script, you can see the behavior upon a collision with the character: The box
+is made invisible and has its physics behavior revoked, then the reward is set on the character blueprint (where it is
+logged with the next "Get Action" call as described above).
+
+
+Running with an RLlib server
+++++++++++++++++++++++++++++
+
+After playing and maybe modifying the game, you can now run an actual RL experiment against an RLlib server.
+Run `this RLlib example script <https://github.com/ray-project/ray/blob/master/rllib/examples/envs/env_connecting_to_rllib_w_tcp_client.py>`__:
+
+.. code-block:: bash
+
+    $ python env_connecting_to_rllib_w_tcp_client.py --num-env-runners=0 --port=5556 --no-tune
+
+The script should start and log that the single, local `EnvRunner` (`num-env-runners=0`) is listening on the specified port
+5556. Note that if you use more than one `EnvRunner` actors, the provided port will be a "base port" `P` and each
+`EnvRunner` actor will get the specific port: `P + env_runner.worker_index`. So if you chose port to be 5556 and have 2 `EnvRunner` actors,
+they will listen on ports 5557 and 5558.
+
+Your console should look somewhat like this, before you start the game in UE5:
+
+.. code-block:: bash
+
+    2025-08-27 15:40:32,157	INFO worker.py:1948 -- Started a local Ray instance.
+    Waiting for client to connect to port 5556...
+
+
+Now, click on the green Play button in your UE5 editor to start running the game. Make sure that your `RLlibGateway` actor
+in the scene (see above) is set to connect to the same port and to the local network address (`127.0.0.1`).
+
+If you don't take over controlling the character with your arrow keys, you should see this message after about 5 seconds on the
+UE5 editor viewport: "RLlib taking over" and the character in the game should start moving around in more or less random
+fashion.
